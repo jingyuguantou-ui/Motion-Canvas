@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=Syncopate:wght@400;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=Share+Tech+Mono&display=swap');
 @import "tailwindcss";
 
 @plugin "@tailwindcss/typography";
@@ -33,57 +33,48 @@
   --color-destructive: hsl(var(--destructive));
   --color-destructive-foreground: hsl(var(--destructive-foreground));
 
-  --font-sans: 'Space Grotesk', sans-serif;
-  --font-display: 'Syncopate', sans-serif;
+  --font-sans: 'Share Tech Mono', monospace;
+  --font-display: 'Rajdhani', sans-serif;
 
-  --radius-sm: calc(var(--radius) - 4px);
-  --radius-md: calc(var(--radius) - 2px);
-  --radius-lg: var(--radius);
-  --radius-xl: calc(var(--radius) + 4px);
+  --radius-sm: 0px;
+  --radius-md: 0px;
+  --radius-lg: 0px;
+  --radius-xl: 0px;
 }
 
 :root {
-  /* Deep Space Dark Theme by Default */
-  --background: 240 10% 4%;
-  --foreground: 210 40% 98%;
+  /* Cyberpunk Dark Theme */
+  --background: 222 100% 4%;
+  --foreground: 51 100% 50%;
   
-  --border: 240 20% 18%;
-  --input: 240 20% 12%;
-  --ring: 316 100% 50%; /* Neon Magenta */
+  --border: 180 100% 50%;
+  --input: 240 55% 10%;
+  --ring: 180 100% 50%;
 
-  --card: 240 10% 6%;
-  --card-foreground: 210 40% 98%;
-  --card-border: 240 20% 18%;
+  --card: 240 55% 10%;
+  --card-foreground: 51 100% 50%;
+  --card-border: 180 100% 50%;
 
-  --popover: 240 10% 6%;
-  --popover-foreground: 210 40% 98%;
-  --popover-border: 240 20% 18%;
+  --popover: 240 55% 10%;
+  --popover-foreground: 51 100% 50%;
+  --popover-border: 180 100% 50%;
 
-  --primary: 316 100% 50%; /* Neon Magenta */
+  --primary: 342 100% 59%;
   --primary-foreground: 0 0% 100%;
 
-  --secondary: 190 100% 50%; /* Neon Cyan */
-  --secondary-foreground: 0 0% 100%;
+  --secondary: 180 100% 50%;
+  --secondary-foreground: 222 100% 4%;
 
-  --muted: 240 15% 15%;
-  --muted-foreground: 240 10% 65%;
+  --muted: 240 38% 16%;
+  --muted-foreground: 180 100% 80%;
 
-  --accent: 280 100% 60%;
-  --accent-foreground: 0 0% 100%;
+  --accent: 49 100% 48%;
+  --accent-foreground: 222 100% 4%;
 
   --destructive: 0 84% 60%;
   --destructive-foreground: 210 40% 98%;
 
-  --radius: 0.75rem;
-
-  --sidebar-background: 240 10% 4%;
-  --sidebar-foreground: 210 40% 98%;
-  --sidebar-primary: 316 100% 50%;
-  --sidebar-primary-foreground: 0 0% 100%;
-  --sidebar-accent: 240 20% 15%;
-  --sidebar-accent-foreground: 210 40% 98%;
-  --sidebar-border: 240 20% 18%;
-  --sidebar-ring: 316 100% 50%;
+  --radius: 0rem;
 }
 
 @layer base {
@@ -101,7 +92,46 @@
   }
 }
 
-/* Custom scrollbar for deep space theme */
+/* Scanlines overlay */
+body::after {
+  content: '';
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: repeating-linear-gradient(
+    0deg,
+    transparent,
+    transparent 2px,
+    rgba(0,0,0,0.15) 2px,
+    rgba(0,0,0,0.15) 4px
+  );
+  pointer-events: none;
+  z-index: 9999;
+}
+
+/* Glitch animation for title */
+@keyframes glitch {
+  0%, 100% { text-shadow: -2px 0 #00FFFF, 2px 0 #FF2D78; }
+  25% { text-shadow: 2px 0 #FFD700, -2px 0 #00FFFF; clip-path: inset(20% 0 60% 0); }
+  50% { text-shadow: -2px 0 #FF2D78, 2px 0 #FFD700; }
+  75% { text-shadow: 2px 0 #00FFFF, -2px 0 #FFD700; clip-path: inset(60% 0 20% 0); }
+}
+
+.glitch-text {
+  animation: glitch 3s infinite linear alternate-reverse;
+  position: relative;
+}
+
+/* CRT flicker */
+@keyframes flicker {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.97; }
+  25%, 75% { opacity: 0.99; }
+}
+
+.flicker-anim {
+  animation: flicker 0.15s infinite;
+}
+
 ::-webkit-scrollbar {
   width: 8px;
   height: 8px;
@@ -111,25 +141,69 @@
 }
 ::-webkit-scrollbar-thumb {
   background: hsl(var(--muted)); 
-  border-radius: 4px;
+  border-radius: 0;
 }
 ::-webkit-scrollbar-thumb:hover {
   background: hsl(var(--secondary)); 
 }
 
-/* Utilities for glowing effects */
 @layer utilities {
   .glow-text {
-    text-shadow: 0 0 10px hsl(var(--primary) / 0.5), 0 0 20px hsl(var(--primary) / 0.3);
+    text-shadow: 0 0 5px hsl(var(--foreground) / 0.8), 0 0 10px hsl(var(--foreground) / 0.5);
+  }
+  .glow-text-primary {
+    text-shadow: 0 0 5px hsl(var(--primary) / 0.8), 0 0 10px hsl(var(--primary) / 0.5);
+  }
+  .glow-text-secondary {
+    text-shadow: 0 0 5px hsl(var(--secondary) / 0.8), 0 0 10px hsl(var(--secondary) / 0.5);
   }
   .glow-box {
-    box-shadow: 0 0 15px hsl(var(--primary) / 0.2), inset 0 0 15px hsl(var(--primary) / 0.1);
+    box-shadow: 0 0 10px hsl(var(--primary) / 0.3), inset 0 0 10px hsl(var(--primary) / 0.2);
   }
   .glow-box-secondary {
-    box-shadow: 0 0 15px hsl(var(--secondary) / 0.2), inset 0 0 15px hsl(var(--secondary) / 0.1);
+    box-shadow: 0 0 10px hsl(var(--secondary) / 0.3), inset 0 0 10px hsl(var(--secondary) / 0.2);
+  }
+  .glow-box-accent {
+    box-shadow: 0 0 10px hsl(var(--accent) / 0.3), inset 0 0 10px hsl(var(--accent) / 0.2);
   }
   
   .glass-panel {
-    @apply bg-black/40 backdrop-blur-xl border border-white/10 shadow-2xl;
+    @apply bg-[#0A0A1A]/80 backdrop-blur-md border border-secondary/30;
   }
+
+  .clip-corner {
+    clip-path: polygon(20px 0, 100% 0, 100% calc(100% - 20px), calc(100% - 20px) 100%, 0 100%, 0 20px);
+  }
+  .clip-corner-reverse {
+    clip-path: polygon(0 0, calc(100% - 20px) 0, 100% 20px, 100% 100%, 20px 100%, 0 calc(100% - 20px));
+  }
+}
+
+@keyframes grid-move {
+  0% { transform: translateY(0); }
+  100% { transform: translateY(40px); }
+}
+
+.grid-bg {
+  background-image: 
+    linear-gradient(to right, rgba(0, 255, 255, 0.1) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(0, 255, 255, 0.1) 1px, transparent 1px);
+  background-size: 40px 40px;
+  animation: grid-move 2s linear infinite;
+}
+
+input[type=range].slider-thumb::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  height: 16px;
+  width: 8px;
+  border: 1px solid black;
+  cursor: pointer;
+}
+
+input[type=range].slider-primary::-webkit-slider-thumb {
+  background: hsl(var(--primary));
+}
+
+input[type=range].slider-accent::-webkit-slider-thumb {
+  background: hsl(var(--accent));
 }

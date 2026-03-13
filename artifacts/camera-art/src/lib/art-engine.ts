@@ -1,7 +1,7 @@
 // Core rendering and particle engine detached from React for maximum performance
 
 export type EffectMode = 'particles' | 'trails' | 'ripple' | 'mirror';
-export type Palette = 'neon' | 'fire' | 'ocean' | 'rainbow';
+export type Palette = 'neon' | 'fire' | 'ocean' | 'matrix';
 
 export interface ArtSettings {
   mode: EffectMode;
@@ -12,10 +12,10 @@ export interface ArtSettings {
 }
 
 const PALETTES: Record<Palette, string[]> = {
-  neon: ['#ff00ff', '#00ffff', '#00ff00', '#7000ff', '#ffffff'],
-  fire: ['#ff4000', '#ff8000', '#ffbf00', '#ff0000', '#330000'],
-  ocean: ['#0080ff', '#00bfff', '#00ffff', '#0040ff', '#ffffff'],
-  rainbow: [] // Calculated dynamically
+  neon: ['#FFD700', '#FF2D78', '#00FFFF', '#FF6B00', '#9B59B6'],
+  fire: ['#FF0000', '#FF4000', '#FF8000', '#FFBF00', '#FFFF00'],
+  ocean: ['#00FFFF', '#00BFFF', '#0080FF', '#0040FF', '#00E5FF'],
+  matrix: ['#00FF41', '#008F11', '#00FF41', '#003B00', '#00FF41']
 };
 
 class Particle {
@@ -38,21 +38,21 @@ class Particle {
     this.baseY = y;
     
     // Spread based on mode
-    const speedMultiplier = mode === 'trails' ? 1.5 : 3;
+    const speedMultiplier = mode === 'trails' ? 2.5 : 4;
     this.vx = (Math.random() - 0.5) * speedMultiplier;
     this.vy = (Math.random() - 0.5) * speedMultiplier;
     
     this.life = 1.0;
     this.decay = Math.random() * 0.02 + 0.01;
     this.color = color;
-    this.size = Math.random() * 3 + 1;
+    this.size = Math.random() * 4 + 2;
     this.mode = mode;
 
     if (mode === 'ripple') {
       this.size = 1;
       this.vx = 0;
       this.vy = 0;
-      this.decay = 0.015;
+      this.decay = 0.02;
     }
   }
 
@@ -61,10 +61,10 @@ class Particle {
     this.y += this.vy;
     
     if (this.mode === 'particles' || this.mode === 'mirror') {
-      this.vy += 0.05; // Gentle gravity
-      this.vx *= 0.99; // Friction
+      this.vy += 0.08; // Gravity
+      this.vx *= 0.98; // Friction
     } else if (this.mode === 'ripple') {
-      this.size += 2; // Expand ring
+      this.size += 3; // Expand ring
     }
     
     this.life -= this.decay;
@@ -72,18 +72,42 @@ class Particle {
 
   draw(ctx: CanvasRenderingContext2D, canvasWidth: number) {
     ctx.globalAlpha = Math.max(0, this.life);
-    ctx.fillStyle = this.color;
     
     if (this.mode === 'ripple') {
       ctx.strokeStyle = this.color;
-      ctx.lineWidth = 1.5;
+      ctx.lineWidth = 2;
+      ctx.shadowBlur = 15;
+      ctx.shadowColor = this.color;
       ctx.beginPath();
       ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
       ctx.stroke();
+      ctx.shadowBlur = 0;
     } else {
+      ctx.fillStyle = this.color;
+      
+      // Neon glow
+      ctx.shadowBlur = 10;
+      ctx.shadowColor = this.color;
+
+      // In particles mode, draw a blurred circle behind for extra glow
+      if (this.mode === 'particles') {
+        ctx.beginPath();
+        ctx.arc(this.x, this.y, this.size * 2, 0, Math.PI * 2);
+        ctx.globalAlpha = Math.max(0, this.life * 0.3);
+        ctx.fill();
+        ctx.globalAlpha = Math.max(0, this.life);
+      }
+
       ctx.beginPath();
       ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
       ctx.fill();
+      
+      if (this.mode === 'trails') {
+         // Trail streaks are handled by not clearing the canvas fully
+         // But we can add extra glow here
+         ctx.shadowBlur = 20;
+         ctx.shadowColor = this.color;
+      }
       
       // Mirror effect draws a reflection on the opposite side
       if (this.mode === 'mirror') {
@@ -92,17 +116,17 @@ class Particle {
         ctx.arc(mirroredX, this.y, this.size, 0, Math.PI * 2);
         ctx.fill();
         
-        // Sometimes connect them for a cool constellation effect
-        if (this.life > 0.8 && Math.random() > 0.9) {
+        if (this.life > 0.8 && Math.random() > 0.8) {
            ctx.strokeStyle = this.color;
-           ctx.lineWidth = 0.5;
-           ctx.globalAlpha = 0.2;
+           ctx.lineWidth = 1;
+           ctx.globalAlpha = 0.4;
            ctx.beginPath();
            ctx.moveTo(this.x, this.y);
            ctx.lineTo(mirroredX, this.y);
            ctx.stroke();
         }
       }
+      ctx.shadowBlur = 0;
     }
     ctx.globalAlpha = 1.0;
   }
@@ -124,7 +148,6 @@ export class ArtEngine {
   private height: number = 0;
   private detectionWidth = 100;
   private detectionHeight = 75;
-  private hueShift = 0;
 
   constructor(
     canvas: HTMLCanvasElement, 
@@ -132,11 +155,11 @@ export class ArtEngine {
     initialSettings: ArtSettings
   ) {
     this.canvas = canvas;
-    this.ctx = canvas.getContext('2d', { alpha: false })!;
+    // We need alpha true to have transparent background for the camera overlay CSS
+    this.ctx = canvas.getContext('2d', { alpha: true })!;
     this.video = video;
     this.settings = initialSettings;
 
-    // Offscreen canvas for fast motion detection
     this.offCanvas = document.createElement('canvas');
     this.offCanvas.width = this.detectionWidth;
     this.offCanvas.height = this.detectionHeight;
@@ -158,9 +181,6 @@ export class ArtEngine {
   }
 
   private getRandomColor(): string {
-    if (this.settings.palette === 'rainbow') {
-      return `hsl(${(this.hueShift + Math.random() * 60) % 360}, 100%, 50%)`;
-    }
     const colors = PALETTES[this.settings.palette];
     return colors[Math.floor(Math.random() * colors.length)];
   }
@@ -168,7 +188,6 @@ export class ArtEngine {
   private detectMotion() {
     if (this.video.readyState !== this.video.HAVE_ENOUGH_DATA) return;
 
-    // Draw mirrored video to offscreen canvas
     this.offCtx.save();
     this.offCtx.translate(this.detectionWidth, 0);
     this.offCtx.scale(-1, 1);
@@ -183,19 +202,13 @@ export class ArtEngine {
       return;
     }
 
-    // Map 0-100 sensitivity to an actual color difference threshold (lower sensitivity = higher threshold)
-    // At 100 sensitivity, threshold is low (catches everything). At 0, threshold is high.
     const threshold = 255 - (this.settings.sensitivity * 2.2); 
-    
-    // Max particles based on setting (0-100 mapped to max spawned per frame)
     const maxSpawns = Math.floor(this.settings.particleCount / 2);
     let spawned = 0;
 
-    // Scale factors to map detection grid back to main canvas
     const scaleX = this.width / this.detectionWidth;
     const scaleY = this.height / this.detectionHeight;
 
-    // Analyze every Nth pixel for performance
     const step = 2;
 
     for (let y = 0; y < this.detectionHeight; y += step) {
@@ -204,15 +217,13 @@ export class ArtEngine {
 
         const i = (y * this.detectionWidth + x) * 4;
         
-        // Simple RGB difference
         const rDiff = Math.abs(data[i] - this.prevData[i]);
         const gDiff = Math.abs(data[i+1] - this.prevData[i+1]);
         const bDiff = Math.abs(data[i+2] - this.prevData[i+2]);
         const totalDiff = rDiff + gDiff + bDiff;
 
         if (totalDiff > threshold) {
-          // Probability to spawn to avoid perfectly grid-aligned clumps
-          if (Math.random() > 0.5) {
+          if (Math.random() > 0.4) {
             const actualX = x * scaleX + (Math.random() * scaleX);
             const actualY = y * scaleY + (Math.random() * scaleY);
             
@@ -233,51 +244,29 @@ export class ArtEngine {
 
   public start() {
     const loop = () => {
-      this.hueShift = (this.hueShift + 0.5) % 360;
-
-      // Handle background rendering based on mode
-      if (this.settings.showCamera && this.video.readyState === this.video.HAVE_ENOUGH_DATA) {
-         // Draw faded video bg
-         this.ctx.globalAlpha = 0.2;
-         this.ctx.save();
-         this.ctx.translate(this.width, 0);
-         this.ctx.scale(-1, 1);
-         this.ctx.drawImage(this.video, 0, 0, this.width, this.height);
-         this.ctx.restore();
-         
-         // Apply a dark overlay to maintain contrast for particles
-         this.ctx.globalAlpha = this.settings.mode === 'trails' ? 0.3 : 0.7;
-         this.ctx.fillStyle = '#05050A';
-         this.ctx.fillRect(0, 0, this.width, this.height);
-         this.ctx.globalAlpha = 1.0;
+      
+      // If camera background is shown, we want canvas to be completely transparent or slightly dark
+      if (this.settings.showCamera) {
+         if (this.settings.mode === 'trails') {
+            this.ctx.fillStyle = 'rgba(10, 10, 26, 0.2)';
+            this.ctx.fillRect(0, 0, this.width, this.height);
+         } else {
+            this.ctx.clearRect(0, 0, this.width, this.height);
+         }
       } else {
-        if (this.settings.mode === 'trails') {
-          // Fading effect for trails
-          this.ctx.fillStyle = 'rgba(5, 5, 10, 0.15)';
-          this.ctx.fillRect(0, 0, this.width, this.height);
-        } else {
-          // Full clear for solid background
-          this.ctx.fillStyle = '#05050A';
-          this.ctx.fillRect(0, 0, this.width, this.height);
-        }
+         if (this.settings.mode === 'trails') {
+            this.ctx.fillStyle = 'rgba(5, 5, 16, 0.2)';
+            this.ctx.fillRect(0, 0, this.width, this.height);
+         } else {
+            this.ctx.fillStyle = '#050510';
+            this.ctx.fillRect(0, 0, this.width, this.height);
+         }
       }
-
-      // Add a subtle vignette/glow to the edges of the canvas
-      const gradient = this.ctx.createRadialGradient(
-        this.width/2, this.height/2, this.height/4, 
-        this.width/2, this.height/2, this.height
-      );
-      gradient.addColorStop(0, 'rgba(0,0,0,0)');
-      gradient.addColorStop(1, 'rgba(0,0,0,0.6)');
-      this.ctx.fillStyle = gradient;
-      this.ctx.fillRect(0, 0, this.width, this.height);
 
       this.detectMotion();
 
-      // Update and Draw Particles
-      // Cap max particles to prevent massive lag spikes
-      if (this.particles.length > 3000) {
-         this.particles.splice(0, this.particles.length - 3000);
+      if (this.particles.length > 2500) {
+         this.particles.splice(0, this.particles.length - 2500);
       }
 
       for (let i = this.particles.length - 1; i >= 0; i--) {

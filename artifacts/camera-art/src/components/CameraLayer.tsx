@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { ArtEngine, ArtSettings } from '@/lib/art-engine';
-import { AlertCircle, Camera, Loader2 } from 'lucide-react';
+import { AlertCircle, Loader2 } from 'lucide-react';
 
 interface CameraLayerProps {
   settings: ArtSettings;
@@ -42,7 +42,7 @@ export function CameraLayer({ settings, isActive, onCameraReady }: CameraLayerPr
         }
       } catch (err) {
         console.error("Camera access denied or failed", err);
-        setError("Camera access denied. Please allow camera permissions to experience the art.");
+        setError("NEURAL LINK SEVERED. CAMERA ACCESS DENIED.");
       } finally {
         setIsRequesting(false);
       }
@@ -61,7 +61,6 @@ export function CameraLayer({ settings, isActive, onCameraReady }: CameraLayerPr
   useEffect(() => {
     if (!isActive || error || !canvasRef.current || !videoRef.current) return;
 
-    // Small delay to ensure video has metadata
     const timer = setTimeout(() => {
       if (!canvasRef.current || !videoRef.current) return;
       
@@ -76,7 +75,7 @@ export function CameraLayer({ settings, isActive, onCameraReady }: CameraLayerPr
         engineRef.current = null;
       }
     };
-  }, [isActive, error]); // Intentionally omitting settings here, handled below
+  }, [isActive, error]);
 
   // Sync settings without rebuilding the engine
   useEffect(() => {
@@ -98,35 +97,59 @@ export function CameraLayer({ settings, isActive, onCameraReady }: CameraLayerPr
       {/* Main rendering canvas */}
       <canvas 
         ref={canvasRef}
-        className="absolute inset-0 w-full h-full object-cover"
+        className="absolute inset-0 w-full h-full object-cover z-10"
       />
 
-      {/* States */}
-      {!isActive && !error && (
-        <div className="relative z-10 flex flex-col items-center">
-          {/* We rely on the parent to show the landing UI when inactive */}
+      {/* Camera Feed overlay with hue adjustment if enabled */}
+      {isActive && settings.showCamera && (
+        <video 
+          autoPlay 
+          muted 
+          playsInline 
+          className="absolute inset-0 w-full h-full object-cover opacity-20 sepia saturate-200 hue-rotate-[150deg] mix-blend-screen scale-x-[-1] z-0"
+          ref={(el) => {
+            if (el && videoRef.current && el.srcObject !== videoRef.current.srcObject) {
+              el.srcObject = videoRef.current.srcObject;
+            }
+          }}
+        />
+      )}
+
+      {/* Status Overlay when Active */}
+      {isActive && !error && !isRequesting && (
+        <div className="absolute top-0 left-0 w-full z-20 pointer-events-none">
+          <div className="flex items-center justify-between p-4 bg-background/50 border-b border-secondary/30 font-mono text-xs text-secondary w-full">
+            <div className="flex gap-4">
+              <span>SYS.OK</span>
+              <span className="animate-pulse text-primary">REC_ACTIVE</span>
+            </div>
+            <div className="flex gap-4">
+              <span>FPS: {'>'}60</span>
+              <span>BUFFER: STABLE</span>
+            </div>
+          </div>
         </div>
       )}
 
       {isRequesting && (
-        <div className="relative z-20 flex flex-col items-center text-primary animate-pulse">
+        <div className="relative z-20 flex flex-col items-center text-primary animate-pulse glass-panel p-8 clip-corner border border-primary glow-box">
           <Loader2 className="w-12 h-12 animate-spin mb-4" />
-          <h2 className="text-xl font-display text-white tracking-widest">Accessing Optics...</h2>
+          <h2 className="text-xl font-mono text-primary tracking-widest uppercase">Initializing Neural Link...</h2>
         </div>
       )}
 
       {error && (
-        <div className="relative z-20 glass-panel p-8 rounded-2xl max-w-md text-center border-destructive/50 shadow-[0_0_50px_rgba(255,0,0,0.1)]">
-          <AlertCircle className="w-16 h-16 text-destructive mx-auto mb-6" />
-          <h2 className="text-2xl font-display text-white mb-4">Signal Lost</h2>
-          <p className="text-muted-foreground mb-6 leading-relaxed">
-            {error}
+        <div className="relative z-20 glass-panel p-8 clip-corner border-2 border-destructive max-w-md text-center shadow-[0_0_30px_rgba(255,0,0,0.3)] bg-background/90">
+          <AlertCircle className="w-16 h-16 text-destructive mx-auto mb-6 drop-shadow-[0_0_10px_rgba(255,0,0,0.8)]" />
+          <h2 className="text-xl font-mono text-destructive mb-4 tracking-widest">{error}</h2>
+          <p className="text-secondary/70 mb-6 font-mono text-sm leading-relaxed">
+            CHECK OPTICAL SENSOR HARDWARE AND PERMISSIONS.
           </p>
           <button 
             onClick={() => window.location.reload()}
-            className="px-6 py-3 bg-destructive/10 text-destructive border border-destructive/30 rounded-full hover:bg-destructive/20 hover:text-white transition-all font-medium uppercase tracking-wider text-sm"
+            className="px-6 py-3 bg-destructive/20 text-destructive border border-destructive hover:bg-destructive hover:text-black transition-all font-mono uppercase tracking-widest text-sm"
           >
-            Re-Initialize
+            [ REBOOT SYSTEM ]
           </button>
         </div>
       )}
