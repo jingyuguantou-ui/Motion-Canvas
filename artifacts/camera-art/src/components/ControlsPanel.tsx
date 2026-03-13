@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { ArtSettings, EffectMode, Palette } from '@/lib/art-engine';
 import {
   Settings2, X, Sparkles, Activity, Layers, Droplet,
-  Eye, EyeOff, Code2, GitBranch, Zap, Network
+  Eye, EyeOff, Code2, GitBranch, Zap, Network, Cpu, RadioTower
 } from 'lucide-react';
 
 interface ControlsPanelProps {
@@ -12,17 +12,19 @@ interface ControlsPanelProps {
 }
 
 const MODE_META: Record<EffectMode, { icon: React.ReactNode; label: string; desc: string }> = {
-  particles:      { icon: <Sparkles className="w-4 h-4" />,   label: 'PARTICLES',    desc: 'Burst' },
-  trails:         { icon: <Activity className="w-4 h-4" />,   label: 'TRAILS',       desc: 'Stream' },
-  ripple:         { icon: <Droplet className="w-4 h-4" />,    label: 'RIPPLE',       desc: 'Pulse' },
-  mirror:         { icon: <Layers className="w-4 h-4" />,     label: 'MIRROR',       desc: 'Reflect' },
-  ascii:          { icon: <Code2 className="w-4 h-4" />,      label: 'ASCII',        desc: 'Decode' },
-  contour:        { icon: <GitBranch className="w-4 h-4" />,  label: 'CONTOUR',      desc: 'Topology' },
-  'magnet-shatter': { icon: <Zap className="w-4 h-4" />,      label: 'MAG-SHATTER',  desc: 'Shatter' },
-  'neural-ascii': { icon: <Network className="w-4 h-4" />,    label: 'NEURAL-ASCII', desc: 'Synapse' },
+  particles:        { icon: <Sparkles className="w-4 h-4" />,    label: 'PARTICLES',     desc: 'Burst' },
+  trails:           { icon: <Activity className="w-4 h-4" />,    label: 'TRAILS',        desc: 'Stream' },
+  ripple:           { icon: <Droplet className="w-4 h-4" />,     label: 'RIPPLE',        desc: 'Pulse' },
+  mirror:           { icon: <Layers className="w-4 h-4" />,      label: 'MIRROR',        desc: 'Reflect' },
+  ascii:            { icon: <Code2 className="w-4 h-4" />,       label: 'ASCII',         desc: 'Decode' },
+  contour:          { icon: <GitBranch className="w-4 h-4" />,   label: 'CONTOUR',       desc: 'Topology' },
+  'magnet-shatter': { icon: <Zap className="w-4 h-4" />,         label: 'MAG-SHATTER',   desc: 'Shatter' },
+  'neural-ascii':   { icon: <Network className="w-4 h-4" />,     label: 'NEURAL-ASCII',  desc: 'Synapse' },
+  'ascii-shatter':  { icon: <Cpu className="w-4 h-4" />,         label: 'ASCII-SHATTER', desc: 'Explode' },
+  'magnet-neural':  { icon: <RadioTower className="w-4 h-4" />,  label: 'MAG-NEURAL',    desc: 'Field' },
 };
 
-const MODES: EffectMode[] = ['particles', 'trails', 'ripple', 'mirror', 'ascii', 'contour', 'magnet-shatter', 'neural-ascii'];
+const MODES: EffectMode[] = ['particles', 'trails', 'ripple', 'mirror', 'ascii', 'contour', 'magnet-shatter', 'neural-ascii', 'ascii-shatter', 'magnet-neural'];
 
 export function ControlsPanel({ settings, onChange }: ControlsPanelProps) {
   const [isOpen, setIsOpen] = useState(false);
@@ -175,6 +177,8 @@ export function ControlsPanel({ settings, onChange }: ControlsPanelProps) {
                 {settings.mode === 'contour' && '>> CONTOUR: Edge-detection topology map. Motion areas pulse with neon color.'}
                 {settings.mode === 'magnet-shatter' && '>> MAG-SHATTER: Pixel shards repelled by motion, pulled back by magnetic field.'}
                 {settings.mode === 'neural-ascii' && '>> NEURAL-ASCII: ASCII base + neural network hotspot connections with live data packets.'}
+                {settings.mode === 'ascii-shatter' && '>> ASCII-SHATTER: ASCII chars rendered from camera; motion blasts chars outward as glowing shards — they spring back home.'}
+                {settings.mode === 'magnet-neural' && '>> MAG-NEURAL: Neural hotspot nodes with magnetic field lines; field particles orbit and stream along bezier curves between nodes.'}
                 {settings.mode === 'particles' && '>> PARTICLES: Motion spawns glowing particle bursts with gravity.'}
                 {settings.mode === 'trails' && '>> TRAILS: Motion leaves persistent neon light trails.'}
                 {settings.mode === 'ripple' && '>> RIPPLE: Motion emits expanding neon ring shockwaves.'}
