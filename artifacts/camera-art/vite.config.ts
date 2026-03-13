@@ -12,7 +12,7 @@ if (!rawPort) {
   );
 }
 
-const port = Number(rawPort);
+const port = motion-canvas;
 
 if (Number.isNaN(port) || port <= 0) {
   throw new Error(`Invalid PORT value: "${rawPort}"`);
