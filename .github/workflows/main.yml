@@ -1,4 +1,4 @@
-name: Deploy GitHub Pages
+name: Deploy camera-art to GitHub Pages
 
 on:
   push:
@@ -6,89 +6,32 @@ on:
   workflow_dispatch:
 
 jobs:
-  build-and-deploy:
+  deploy:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
-name: Deploy GitHub Pages姓名: 部署 GitHub Pages
-
-on:在:
-  push:推:
-    branches: [ "master" ]
-  workflow_dispatch:工作流调度:
-
-jobs:工作:
-  build-and-deploy:构建和部署:
-    runs-on: ubuntu-latest继续: ubuntu-latest
-    steps:步骤:
-      - uses: actions/checkout@v3      - 用途: actions/checkout@v3
-
-      - name: Setup Node.js      - 姓名: 安装 Node.js
-        uses: actions/setup-node@v3用途: actions/setup-node@v3
-        with:和:
-          node-version: '20'
-          cache: 'pnpm'
-
-      - name: Install pnpm      - 姓名: 安装 pnpm
-        run: npm install -g pnpm跑步: npm install -g pnpm
-
-      - name: Install dependencies      - 姓名: 安装依赖项
-        run: pnpm install
-
-      - name: Build camera-art      - 姓名: 构建相机艺术
-        run: pnpm run build --filter camera-art跑步: pnpm run build --filter camera-art
-
-      - name: Deploy to GitHub Pages      - 姓名: 部署到 GitHub Pages
-        uses: peaceiris/actions-gh-pages@v3用途: peaceiris/actions-gh-pages@v3
-        with:和:
-          github_token: ${{ secrets.GITHUB_TOKEN }}github_token: ${{secrets.GITHUB_TOKEN}}
-          publish_dir: ./artifacts/camera-art/dist发布目录: ./artifacts/camera-art/dist
-          publish_branch: gh-pages
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+      - uses: actions/checkout@v4
 
       - name: Setup Node.js
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v4
         with:
           node-version: 20
+          cache: 'pnpm'
 
       - name: Install pnpm
         run: npm install -g pnpm
 
       - name: Install dependencies
-        run: pnpm install
+        run: pnpm install跑步: pnpm 安装
 
       - name: Build camera-art
         run: pnpm run build --filter camera-art
 
       - name: Deploy to GitHub Pages
-        uses: peaceiris/actions-gh-pages@v3
+        uses: peaceiris/actions-gh-pages@v4
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_dir: ./artifacts/camera-art/dist
+
 
 
 
