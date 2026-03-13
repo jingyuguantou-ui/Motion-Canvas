@@ -1,0 +1,12 @@
+packages:
+  "framer-motion": "For fluid, premium animations in the UI panel and landing sequence"
+  "react-use": "For robust sensor and window hooks like useWindowSize"
+
+images:
+  - path: "artifacts/camera-art/public/images/space-bg.png"
+    description: "Deep space aesthetic background, abstract dark nebula with subtle glowing neon magenta and cyan dust, ultra high quality, 8k resolution, minimalist but immersive"
+    aspect_ratio: "16:9"
+
+notes:
+  - This is a pure client-side application utilizing HTML5 Canvas and getUserMedia.
+  - No backend API is strictly required for the core experience.
