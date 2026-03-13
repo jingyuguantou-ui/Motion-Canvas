@@ -3,7 +3,8 @@
 export type EffectMode =
   | 'particles' | 'trails' | 'ripple' | 'mirror'
   | 'ascii' | 'contour' | 'magnet-shatter' | 'neural-ascii'
-  | 'ascii-shatter' | 'magnet-neural';
+  | 'ascii-shatter' | 'magnet-neural'
+  | 'neural-burst' | 'neural-flow';
 
 export type Palette = 'neon' | 'fire' | 'ocean' | 'matrix';
 
@@ -164,6 +165,13 @@ export class ArtEngine {
   private fieldParticles: FieldParticle[] = [];
   private orbitAngles: number[] = [];
 
+  // neural-burst
+  private burstParticles: { x: number; y: number; vx: number; vy: number; life: number; decay: number; color: string; size: number; nodeIdx: number }[] = [];
+  private nodeLastStrength: number[] = [];
+
+  // neural-flow: flowing ASCII chars along connection paths
+  private flowChars: { nodeA: number; nodeB: number; t: number; speed: number; char: string; color: string }[] = [];
+
   // demo
   private demoTime = 0;
 
@@ -188,6 +196,7 @@ export class ArtEngine {
     if (modeChanged) {
       this.particles = []; this.shards = []; this.hotspots = []; this.packets = [];
       this.asciiCells = []; this.fieldParticles = []; this.orbitAngles = [];
+      this.burstParticles = []; this.nodeLastStrength = []; this.flowChars = [];
     }
   }
 
@@ -768,6 +777,272 @@ export class ArtEngine {
   }
 
   // ==================================================================
+  // NEW: NEURAL-BURST — 神经网络图谱 + 粒子爆裂
+  // Hotspot nodes emit explosive particle bursts; neural connections visible
+  // ==================================================================
+  private renderNeuralBurst(motionList: { x: number; y: number; diff: number }[]) {
+    const ctx = this.ctx;
+    const colors = PALETTES[this.settings.palette];
+
+    // Slow background fade for trail effect
+    ctx.fillStyle = 'rgba(5,5,16,0.3)';
+    ctx.fillRect(0, 0, this.width, this.height);
+
+    // Update hotspots
+    this.updateHotspots(motionList);
+    const N = this.hotspots.length;
+    while (this.nodeLastStrength.length < N) this.nodeLastStrength.push(0);
+
+    // Detect newly energized nodes and fire bursts
+    for (let i = 0; i < N; i++) {
+      const h = this.hotspots[i];
+      const prev = this.nodeLastStrength[i] ?? 0;
+      const delta = h.strength - prev;
+
+      // Fire a burst when node strength rises significantly
+      if (delta > 0.12 && h.strength > 0.3) {
+        const burstCount = Math.floor(30 + h.strength * 60);
+        const color = colors[i % colors.length];
+        for (let b = 0; b < burstCount; b++) {
+          const angle = Math.random() * Math.PI * 2;
+          const speed = 2 + Math.random() * 8;
+          this.burstParticles.push({
+            x: h.x, y: h.y,
+            vx: Math.cos(angle) * speed,
+            vy: Math.sin(angle) * speed - Math.random() * 2,
+            life: 1.0,
+            decay: 0.008 + Math.random() * 0.018,
+            color,
+            size: Math.random() * 4 + 1.5,
+            nodeIdx: i,
+          });
+        }
+      }
+      this.nodeLastStrength[i] = h.strength;
+    }
+
+    // Draw neural connections between nodes (glowing arcs)
+    for (let a = 0; a < N; a++) {
+      for (let b = a + 1; b < N; b++) {
+        const ha = this.hotspots[a], hb = this.hotspots[b];
+        const dist = Math.hypot(ha.x - hb.x, ha.y - hb.y);
+        if (dist > 600) continue;
+        const alpha = Math.min(ha.strength, hb.strength) * 0.65;
+        const color = colors[(a + b) % colors.length];
+        const cpx = (ha.x + hb.x) / 2 + Math.sin(this.asciiAnimTime * 0.5 + a) * 40;
+        const cpy = (ha.y + hb.y) / 2 + Math.cos(this.asciiAnimTime * 0.4 + b) * 40 - 50;
+        ctx.beginPath(); ctx.moveTo(ha.x, ha.y);
+        ctx.quadraticCurveTo(cpx, cpy, hb.x, hb.y);
+        ctx.strokeStyle = color; ctx.globalAlpha = alpha; ctx.lineWidth = 1.2;
+        ctx.shadowBlur = 12; ctx.shadowColor = color; ctx.stroke();
+        ctx.shadowBlur = 0; ctx.globalAlpha = 1;
+
+        // Occasional lightning fork along connection
+        if (Math.random() > 0.97) {
+          const forkT = 0.3 + Math.random() * 0.4;
+          const fx = this.bezierPoint(forkT, ha.x, cpx, hb.x);
+          const fy = this.bezierPoint(forkT, ha.y, cpy, hb.y);
+          ctx.beginPath(); ctx.moveTo(fx, fy);
+          ctx.lineTo(fx + (Math.random() - 0.5) * 80, fy + (Math.random() - 0.5) * 80);
+          ctx.strokeStyle = color; ctx.globalAlpha = 0.7; ctx.lineWidth = 0.8;
+          ctx.shadowBlur = 20; ctx.shadowColor = color; ctx.stroke();
+          ctx.shadowBlur = 0; ctx.globalAlpha = 1;
+        }
+      }
+    }
+
+    // Draw node rings and pulsing halos
+    for (let i = 0; i < N; i++) {
+      const h = this.hotspots[i];
+      const color = colors[i % colors.length];
+      const pulse = 1 + 0.4 * Math.sin(this.asciiAnimTime * 2.5 + i * 1.3);
+
+      // Halo
+      ctx.beginPath(); ctx.arc(h.x, h.y, (18 + h.strength * 28) * pulse, 0, Math.PI * 2);
+      ctx.strokeStyle = color; ctx.lineWidth = 1.5; ctx.globalAlpha = h.strength * 0.7;
+      ctx.shadowBlur = 30; ctx.shadowColor = color; ctx.stroke(); ctx.shadowBlur = 0;
+
+      // Core
+      ctx.beginPath(); ctx.arc(h.x, h.y, 5 + h.strength * 4, 0, Math.PI * 2);
+      ctx.fillStyle = color; ctx.globalAlpha = 1;
+      ctx.shadowBlur = 25; ctx.shadowColor = color; ctx.fill(); ctx.shadowBlur = 0;
+
+      // Node label
+      ctx.globalAlpha = h.strength * 0.8;
+      ctx.fillStyle = color;
+      ctx.font = '8px "Share Tech Mono", monospace'; ctx.textBaseline = 'top';
+      ctx.fillText(`N${i}`, h.x + 12, h.y - 6);
+      ctx.globalAlpha = 1;
+    }
+
+    // Update and draw burst particles
+    if (this.burstParticles.length > 4000) this.burstParticles.splice(0, this.burstParticles.length - 4000);
+    for (let i = this.burstParticles.length - 1; i >= 0; i--) {
+      const p = this.burstParticles[i];
+      p.vy += 0.06; // gravity
+      p.vx *= 0.97; p.vy *= 0.97; // drag
+      p.x += p.vx; p.y += p.vy;
+      p.life -= p.decay;
+      if (p.life <= 0) { this.burstParticles.splice(i, 1); continue; }
+
+      // Core dot
+      ctx.beginPath(); ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+      ctx.fillStyle = p.color; ctx.globalAlpha = p.life;
+      ctx.shadowBlur = 10; ctx.shadowColor = p.color; ctx.fill();
+
+      // Glow halo
+      ctx.beginPath(); ctx.arc(p.x, p.y, p.size * 2.5, 0, Math.PI * 2);
+      ctx.globalAlpha = p.life * 0.2; ctx.fill();
+      ctx.shadowBlur = 0; ctx.globalAlpha = 1;
+    }
+
+    this.asciiAnimTime += 0.05;
+  }
+
+  // ==================================================================
+  // NEW: NEURAL-FLOW — 神经网络图谱 + ASCII字符化捕捉
+  // ASCII char grid from camera; neural connections rendered as streaming
+  // ASCII characters flowing along bezier paths between hotspot nodes
+  // ==================================================================
+  private renderNeuralFlow(data: Uint8ClampedArray, motionHits: Set<number>, motionList: { x: number; y: number; diff: number }[]) {
+    const ctx = this.ctx;
+    const colors = PALETTES[this.settings.palette];
+    const charW = 10, charH = 15;
+    const cols = Math.floor(this.width / charW), rows = Math.floor(this.height / charH);
+    const FLOW_CHARS = ['-', '=', '~', '>', '<', '|', '+', '*', '#', '@'];
+    const NODE_CHARS = ['*', 'O', '#', '@', '0'];
+
+    // Background
+    ctx.fillStyle = 'rgba(5,5,16,0.5)';
+    ctx.fillRect(0, 0, this.width, this.height);
+
+    // Layer 1: ASCII character grid from camera data
+    ctx.font = `${charH - 2}px "Share Tech Mono", monospace`;
+    ctx.textBaseline = 'top';
+    for (let row = 0; row < rows; row++) {
+      for (let col = 0; col < cols; col++) {
+        const dx = Math.floor((col / cols) * this.DW);
+        const dy = Math.floor((row / rows) * this.DH);
+        const di = (dy * this.DW + dx) * 4;
+        const brightness = (data[di] * 0.299 + data[di+1] * 0.587 + data[di+2] * 0.114) / 255;
+        const char = ASCII_CHARS[Math.min(ASCII_CHARS.length - 1, Math.floor(brightness * ASCII_CHARS.length))];
+        const isMotion = motionHits.has(dy * this.DW + dx);
+
+        if (isMotion) {
+          const ci = Math.floor(this.asciiAnimTime * 2 + col * 0.08 + row * 0.04) % colors.length;
+          ctx.fillStyle = colors[ci]; ctx.shadowBlur = 10; ctx.shadowColor = colors[ci];
+          ctx.globalAlpha = 0.9;
+        } else {
+          ctx.fillStyle = `rgba(0,${Math.floor(brightness * 100 + 25)},${Math.floor(brightness * 50)},1)`;
+          ctx.globalAlpha = 0.2 + brightness * 0.4; ctx.shadowBlur = 0;
+        }
+        ctx.fillText(char, col * charW, row * charH);
+      }
+    }
+    ctx.shadowBlur = 0; ctx.globalAlpha = 1;
+
+    // Update neural hotspots
+    this.updateHotspots(motionList);
+    const N = this.hotspots.length;
+
+    // Layer 2: ASCII chars flowing along neural connection paths
+    for (let a = 0; a < N; a++) {
+      for (let b = a + 1; b < N; b++) {
+        const ha = this.hotspots[a], hb = this.hotspots[b];
+        const dist = Math.hypot(ha.x - hb.x, ha.y - hb.y);
+        if (dist > 550) continue;
+        const color = colors[(a + b) % colors.length];
+        const alpha = Math.min(ha.strength, hb.strength) * 0.85;
+
+        const cpx = (ha.x + hb.x) / 2 + Math.sin(this.asciiAnimTime * 0.5 + a + b) * 50;
+        const cpy = (ha.y + hb.y) / 2 + Math.cos(this.asciiAnimTime * 0.35 + a) * 50 - 60;
+
+        // Draw static ASCII chars evenly spaced along the bezier path
+        const steps = Math.floor(dist / 14);
+        ctx.font = `bold 11px "Share Tech Mono", monospace`;
+        for (let s = 0; s <= steps; s++) {
+          const t = s / steps;
+          const px = this.bezierPoint(t, ha.x, cpx, hb.x);
+          const py = this.bezierPoint(t, ha.y, cpy, hb.y);
+          const charIdx = Math.floor((this.asciiAnimTime * 4 + s) % FLOW_CHARS.length);
+          const c = FLOW_CHARS[charIdx];
+          ctx.fillStyle = color; ctx.globalAlpha = alpha * (0.5 + 0.5 * Math.sin(this.asciiAnimTime * 3 + s * 0.4));
+          ctx.shadowBlur = 12; ctx.shadowColor = color;
+          ctx.fillText(c, px - 5, py - 6);
+        }
+        ctx.shadowBlur = 0; ctx.globalAlpha = 1;
+      }
+    }
+
+    // Spawn flow chars streaming A→B
+    if (N >= 2 && this.flowChars.length < 120) {
+      const a = Math.floor(Math.random() * N);
+      let b = Math.floor(Math.random() * N);
+      if (b === a) b = (a + 1) % N;
+      this.flowChars.push({
+        nodeA: a, nodeB: b, t: 0,
+        speed: 0.008 + Math.random() * 0.015,
+        char: FLOW_CHARS[Math.floor(Math.random() * FLOW_CHARS.length)],
+        color: colors[Math.floor(Math.random() * colors.length)],
+      });
+    }
+
+    // Draw and advance streaming flow chars
+    ctx.font = `bold 13px "Share Tech Mono", monospace`;
+    this.flowChars = this.flowChars.filter(fc => {
+      if (fc.nodeA >= N || fc.nodeB >= N) return false;
+      fc.t += fc.speed;
+      if (fc.t > 1) return false;
+      const ha = this.hotspots[fc.nodeA], hb = this.hotspots[fc.nodeB];
+      const cpx = (ha.x + hb.x) / 2 + Math.sin(this.asciiAnimTime * 0.5 + fc.nodeA + fc.nodeB) * 50;
+      const cpy = (ha.y + hb.y) / 2 + Math.cos(this.asciiAnimTime * 0.35 + fc.nodeA) * 50 - 60;
+      const px = this.bezierPoint(fc.t, ha.x, cpx, hb.x);
+      const py = this.bezierPoint(fc.t, ha.y, cpy, hb.y);
+      ctx.fillStyle = fc.color; ctx.globalAlpha = 1;
+      ctx.shadowBlur = 18; ctx.shadowColor = fc.color;
+      ctx.fillText(fc.char, px - 6, py - 7);
+      ctx.shadowBlur = 0;
+      return true;
+    });
+    ctx.globalAlpha = 1;
+
+    // Layer 3: Hotspot nodes rendered as ASCII art circles
+    ctx.font = `bold 14px "Share Tech Mono", monospace`;
+    for (let i = 0; i < N; i++) {
+      const h = this.hotspots[i];
+      const color = colors[i % colors.length];
+      const r = 20 + h.strength * 25;
+
+      // Ring of ASCII chars
+      const ringCount = Math.floor(r * 0.6);
+      const nc = NODE_CHARS[i % NODE_CHARS.length];
+      for (let k = 0; k < ringCount; k++) {
+        const angle = (k / ringCount) * Math.PI * 2 + this.asciiAnimTime * 0.5;
+        const rx = h.x + Math.cos(angle) * r;
+        const ry = h.y + Math.sin(angle) * r * 0.6;
+        ctx.fillStyle = color; ctx.globalAlpha = h.strength * (0.5 + 0.5 * Math.sin(this.asciiAnimTime * 2 + k));
+        ctx.shadowBlur = 14; ctx.shadowColor = color;
+        ctx.fillText(nc, rx - 6, ry - 7);
+      }
+
+      // Core symbol
+      ctx.fillStyle = color; ctx.globalAlpha = 1;
+      ctx.shadowBlur = 25; ctx.shadowColor = color;
+      ctx.fillText('@', h.x - 7, h.y - 8);
+      ctx.shadowBlur = 0;
+
+      // Label
+      ctx.font = '8px "Share Tech Mono", monospace';
+      ctx.fillStyle = color; ctx.globalAlpha = h.strength * 0.7;
+      ctx.fillText(`SYN_${i.toString().padStart(2, '0')}`, h.x + 18, h.y - 4);
+      ctx.font = `bold 14px "Share Tech Mono", monospace`;
+    }
+    ctx.shadowBlur = 0; ctx.globalAlpha = 1;
+
+    this.asciiAnimTime += 0.05;
+  }
+
+  // ==================================================================
   // Main loop
   // ==================================================================
   public start() {
@@ -801,8 +1076,10 @@ export class ArtEngine {
       if (mode === 'contour')        { this.renderContour(data!, motionHits);                        this.animationId = requestAnimationFrame(loop); return; }
       if (mode === 'magnet-shatter') { this.renderMagnetShatter(data!, motionMap);                   this.animationId = requestAnimationFrame(loop); return; }
       if (mode === 'neural-ascii')   { this.renderNeuralAscii(data!, motionHits, motionList);        this.animationId = requestAnimationFrame(loop); return; }
-      if (mode === 'ascii-shatter')  { this.renderAsciiShatter(data!, motionList);                   this.animationId = requestAnimationFrame(loop); return; }
-      if (mode === 'magnet-neural')  { this.renderMagnetNeural(motionList);                          this.animationId = requestAnimationFrame(loop); return; }
+      if (mode === 'ascii-shatter')  { this.renderAsciiShatter(data!, motionList);                        this.animationId = requestAnimationFrame(loop); return; }
+      if (mode === 'magnet-neural')  { this.renderMagnetNeural(motionList);                               this.animationId = requestAnimationFrame(loop); return; }
+      if (mode === 'neural-burst')   { this.renderNeuralBurst(motionList);                                this.animationId = requestAnimationFrame(loop); return; }
+      if (mode === 'neural-flow')    { this.renderNeuralFlow(data!, motionHits, motionList);              this.animationId = requestAnimationFrame(loop); return; }
 
       // Particle modes
       if (this.settings.showCamera && !isDemo) {
